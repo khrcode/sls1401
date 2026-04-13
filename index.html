@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Peta Interaktif Batas Desa & SLS</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, -apple-system, sans-serif; }
+        #map { width: 100vw; height: 100vh; }
+        
+        #gear-btn {
+            position: absolute; bottom: 25px; right: 25px; z-index: 1000;
+            background: white; border: 2px solid #555; border-radius: 50%;
+            width: 55px; height: 55px; display: flex; align-items: center;
+            justify-content: center; font-size: 28px; cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); transition: all 0.2s;
+        }
+
+        #settings-panel {
+            position: absolute; bottom: 95px; right: 25px; z-index: 1000;
+            background: white; border-radius: 12px; box-shadow: 0 6px 25px rgba(0,0,0,0.35);
+            padding: 20px; width: 280px; display: none; flex-direction: column; gap: 10px;
+        }
+        
+        #settings-panel h3 { margin: 5px 0; text-align: center; color: #333; font-size: 14px; border-top: 1px solid #eee; padding-top: 5px; }
+        
+        .filter-group { display: flex; flex-direction: column; gap: 8px; }
+        .filter-group select, .search-container input { 
+            padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; width: 100%;
+        }
+        
+        .search-container { display: flex; gap: 5px; }
+        .search-container button {
+            flex: 1; padding: 8px; background: #4285F4; color: white; border: none;
+            border-radius: 4px; cursor: pointer; font-size: 13px;
+        }
+
+        .checkbox-group { display: flex; flex-direction: column; gap: 10px; margin-top: 5px; }
+        .checkbox-item { display: flex; align-items: center; gap: 10px; font-size: 14px; cursor: pointer; }
+        .color-box { width: 18px; height: 18px; border-radius: 4px; border: 2px solid #333; }
+
+        #locate-btn {
+            position: absolute; top: 100px; right: 10px; z-index: 1000;
+            background: white; border: 2px solid rgba(0,0,0,0.2); border-radius: 4px;
+            width: 34px; height: 34px; display: flex; align-items: center;
+            justify-content: center; font-size: 18px; cursor: pointer;
+        }
+
+        #info-box {
+            position: absolute; bottom: 25px; left: 25px; z-index: 1000;
+            background: rgba(0, 0, 0, 0.1); color: white; padding: 15px; border-radius: 8px; 
+            font-size: 14px; line-height: 1.6; pointer-events: auto; display: none; min-width: 220px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.9);
+        }
+
+        .copy-btn {
+            cursor: pointer; margin-left: 8px; font-size: 12px; vertical-align: middle;
+            background: rgba(255,255,255,0.2); padding: 2px 5px; border-radius: 4px;
+        }
+
+        #toast {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.3); color: white; padding: 12px 20px;
+            border-radius: 10px; z-index: 2000; display: none; font-size: 14px;
+        }
+
+        /* Style untuk label kdsls aktif */
+        .active-label {
+            background: rgba(0, 0, 0, 0.2);
+            color: #00FF00; /* Warna Hijau */
+            border: none;
+            box-shadow: none;
+            font-size: 13px;
+            font-weight: bold;
+            text-shadow: 1px 1px 1px rgba(0,0,0,0.8);
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+        .active-label::before { display: none; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="info-box"></div>
+    <div id="toast">ID SLS Berhasil disalin</div>
+
+    <div id="gear-btn" title="Pengaturan & Cari">⚙️</div>
+    <div id="locate-btn" title="Lokasi Saya">📍</div>
+
+    <div id="settings-panel">
+        <h3>🔍 Cari ID SLS</h3>
+        <div class="search-container">
+            <input type="text" id="search-idsls" placeholder="Masukkan ID SLS...">
+            <button id="search-btn">Cari</button>
+        </div>
+
+        <h3>Filter Wilayah</h3>
+        <div class="filter-group">
+            <select id="sel-kec"><option value="">-- Pilih Kecamatan --</option></select>
+            <select id="sel-desa"><option value="">-- Pilih Desa --</option></select>
+            <select id="sel-sls"><option value="">-- Pilih SLS --</option></select>
+        </div>
+
+        <h3>🔧 Tampilkan Batas</h3>
+        <div class="checkbox-group">
+            <label class="checkbox-item">
+                <input type="checkbox" id="desa-check">
+                <span class="color-box" style="background: rgba(0, 0, 255, 0.25); border-color: #0000FF;"></span>
+                Batas Desa (Biru)
+            </label>
+            <label class="checkbox-item">
+                <input type="checkbox" id="sls-check" checked>
+                <span class="color-box" style="background: rgba(255, 0, 0, 0.25); border-color: #FF0000;"></span>
+                Batas SLS / RT (Merah)
+            </label>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+    
+    <script>
+        const map = L.map('map', { zoomControl: true }).setView([-2.5489, 118.0149], 16);
+        let desaLayer = null, slsLayer = null, userMarker = null, selectedLayer = null;
+        let activeLabelGroup = L.layerGroup().addTo(map); // Menyimpan label tunggal
+        let allFeatures = [];
+
+        const baseLayers = {
+            "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map),
+            "Google Satellite": L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}'),
+            "Google Hybrid": L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'),
+            "Google Street": L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}'),
+            "ESRI Satellite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}')
+        };
+        L.control.layers(baseLayers, null, { position: 'topright' }).addTo(map);
+
+        const desaStyle = { color: '#0000FF', weight: 4, opacity: 1, fillOpacity: 0 };
+        const slsStyle = { color: '#FF0000', weight: 2.5, opacity: 1, fillOpacity: 0 };
+        const slsHighlightStyle = { color: '#FFFF00', weight: 5, opacity: 1, fillOpacity: 0.05 };
+
+        function closeGearPanel() {
+            const p = document.getElementById('settings-panel');
+            if (p.style.display === 'flex') { p.style.display = 'none'; }
+        }
+
+        async function loadGeoJSON() {
+            try {
+                const desaRes = await fetch('desa.geojson');
+                const desaData = await desaRes.json();
+                desaLayer = L.geoJSON(desaData, {
+                    style: desaStyle, interactive: false,
+                    onEachFeature: (f, l) => { if (f.properties?.nmdesa) l.bindTooltip(f.properties.nmdesa, { sticky: true }); }
+                });
+
+                const slsRes = await fetch('sls.geojson');
+                const slsData = await slsRes.json();
+                allFeatures = slsData.features;
+                
+                slsLayer = L.geoJSON(slsData, {
+                    style: slsStyle,
+                    onEachFeature: function(feature, layer) {
+                        if (feature.properties?.nmsls) layer.bindTooltip(feature.properties.nmsls, { sticky: true });
+                        layer.on('click', (e) => { 
+                            closeGearPanel();
+                            highlightFeature(e.target); 
+                            updateInfoBox(feature.properties); 
+                        });
+                    }
+                }).addTo(map);
+
+                populateDropdowns();
+                locateUser(true);
+            } catch (err) { console.error("Data Error:", err); }
+        }
+
+        function populateDropdowns() {
+            const selKec = document.getElementById('sel-kec');
+            const uniqueKec = [...new Set(allFeatures.map(f => `${f.properties.kdkec}|${f.properties.nmkec}`))].sort();
+            uniqueKec.forEach(item => {
+                const [kd, nm] = item.split('|');
+                selKec.add(new Option(`${kd} - ${nm}`, kd));
+            });
+
+            selKec.onchange = () => {
+                const selDesa = document.getElementById('sel-desa');
+                selDesa.innerHTML = '<option value="">-- Pilih Desa --</option>';
+                document.getElementById('sel-sls').innerHTML = '<option value="">-- Pilih SLS --</option>';
+                const filtered = allFeatures.filter(f => f.properties.kdkec === selKec.value);
+                const uniqueDesa = [...new Set(filtered.map(f => `${f.properties.kddesa}|${f.properties.nmdesa}`))].sort();
+                uniqueDesa.forEach(item => {
+                    const [kd, nm] = item.split('|');
+                    selDesa.add(new Option(`${kd} - ${nm}`, kd));
+                });
+            };
+
+            document.getElementById('sel-desa').onchange = function() {
+                const selSls = document.getElementById('sel-sls');
+                selSls.innerHTML = '<option value="">-- Pilih SLS --</option>';
+                const filtered = allFeatures.filter(f => f.properties.kdkec === selKec.value && f.properties.kddesa === this.value);
+                filtered.sort((a, b) => (a.properties.nmsls > b.properties.nmsls) ? 1 : -1).forEach(f => {
+                    selSls.add(new Option(`${f.properties.kdsls} - ${f.properties.nmsls}`, f.properties.idsls));
+                });
+            };
+
+            document.getElementById('sel-sls').onchange = function() {
+                if (this.value) {
+                    const layer = slsLayer.getLayers().find(l => l.feature.properties.idsls == this.value);
+                    if (layer) {
+                        map.fitBounds(layer.getBounds());
+                        highlightFeature(layer);
+                        updateInfoBox(layer.feature.properties);
+                    }
+                }
+            };
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                const toast = document.getElementById('toast');
+                toast.style.display = 'block';
+                setTimeout(() => { toast.style.display = 'none'; }, 1000);
+            });
+        }
+
+        function updateInfoBox(props) {
+            const box = document.getElementById('info-box');
+            const idsls = props.idsls || '-';
+            box.innerHTML = `
+                <b>ID SLS:</b> ${idsls} <span class="copy-btn" onclick="copyToClipboard('${idsls}')" title="Salin ID">📋</span><br>
+                <b>Kec:</b> ${(props.kdkec || '')} ${props.nmkec || '-'}<br>
+                <b>Desa:</b> ${(props.kddesa || '')} ${props.nmdesa || '-'}<br>
+                <b>Kode SLS:</b> ${props.kdsls || '-'}<br>
+                <b>Nama SLS:</b> ${props.nmsls || '-'}
+            `;
+            box.style.display = 'block';
+        }
+
+        function showActiveLabel(targetLayer) {
+            activeLabelGroup.clearLayers();
+            const targetGeo = targetLayer.toGeoJSON();
+            const targetCenter = turf.centerOfMass(targetGeo);
+            
+            L.marker([targetCenter.geometry.coordinates[1], targetCenter.geometry.coordinates[0]], {
+                icon: L.divIcon({
+                    className: 'active-label',
+                    html: targetLayer.feature.properties.kdsls || '',
+                    iconSize: [40, 20],
+                    iconAnchor: [20, 10]
+                }),
+                interactive: false
+            }).addTo(activeLabelGroup);
+        }
+
+        function highlightFeature(layer) {
+            if (selectedLayer) slsLayer.resetStyle(selectedLayer);
+            slsLayer.bringToBack(); 
+            selectedLayer = layer;
+            selectedLayer.setStyle(slsHighlightStyle);
+            selectedLayer.bringToFront();
+            
+            // Tampilkan label hijau hanya untuk poligon ini
+            showActiveLabel(layer);
+        }
+
+        function locateUser(isStartup = false) {
+            navigator.geolocation.getCurrentPosition((pos) => {
+                const { latitude, longitude } = pos.coords;
+                if (userMarker) map.removeLayer(userMarker);
+                userMarker = L.marker([latitude, longitude], {
+                    icon: L.divIcon({
+                        className: 'user-loc',
+                        html: '<div style="background:#4285F4; width:18px; height:18px; border-radius:50%; border:3px solid white; box-shadow:0 0 0 4px rgba(66,133,244,0.4);"></div>',
+                        iconSize: [24, 24], iconAnchor: [12, 12]
+                    })
+                }).addTo(map);
+                map.setView([latitude, longitude], 16);
+                const point = turf.point([longitude, latitude]);
+                slsLayer.eachLayer(layer => {
+                    if (turf.booleanPointInPolygon(point, layer.toGeoJSON())) {
+                        highlightFeature(layer);
+                        updateInfoBox(layer.feature.properties);
+                    }
+                });
+            }, (err) => { if(!isStartup) alert("Gagal akses lokasi."); }, { enableHighAccuracy: true });
+        }
+
+        document.getElementById('gear-btn').onclick = () => {
+            const p = document.getElementById('settings-panel');
+            p.style.display = p.style.display === 'flex' ? 'none' : 'flex';
+        };
+        document.getElementById('locate-btn').onclick = () => locateUser(false);
+        document.getElementById('search-btn').onclick = () => {
+            const val = document.getElementById('search-idsls').value.trim();
+            const l = slsLayer.getLayers().find(lay => lay.feature.properties.idsls == val);
+            if (l) { map.fitBounds(l.getBounds()); highlightFeature(l); updateInfoBox(l.feature.properties); }
+            else alert("ID tidak ditemukan");
+        };
+
+        document.getElementById('desa-check').onchange = function() { this.checked ? desaLayer.addTo(map).bringToFront() : map.removeLayer(desaLayer); };
+        document.getElementById('sls-check').onchange = function() { this.checked ? slsLayer.addTo(map) : map.removeLayer(slsLayer); };
+
+        map.on('click', (e) => { 
+            if (e.originalEvent.target.id === 'map') { 
+                closeGearPanel();
+                activeLabelGroup.clearLayers();
+                if (selectedLayer) slsLayer.resetStyle(selectedLayer); 
+                selectedLayer = null; 
+                document.getElementById('info-box').style.display = 'none'; 
+            } 
+        });
+
+        window.onload = loadGeoJSON;
+    </script>
+</body>
+</html>
