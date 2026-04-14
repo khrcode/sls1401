@@ -6,7 +6,9 @@
     <title>Peta Interaktif Batas Desa & SLS</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
+        /* CSS tetap sama sesuai file asli */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: system-ui, -apple-system, sans-serif; }
         #map { width: 100vw; height: 100vh; }
@@ -43,9 +45,9 @@
         .color-box { width: 18px; height: 18px; border-radius: 4px; border: 2px solid #333; }
 
         #locate-btn {
-            position: absolute; top: 100px; right: 10px; z-index: 1000;
+            position: absolute; top: 100px; left: 10px; z-index: 1000;
             background: white; border: 2px solid rgba(0,0,0,0.2); border-radius: 4px;
-            width: 34px; height: 34px; display: flex; align-items: center;
+            width: 48px; height: 48px; display: flex; align-items: center;
             justify-content: center; font-size: 18px; cursor: pointer;
         }
 
@@ -67,10 +69,9 @@
             border-radius: 10px; z-index: 2000; display: none; font-size: 14px;
         }
 
-        /* Style untuk label kdsls aktif */
         .active-label {
             background: rgba(0, 0, 0, 0.2);
-            color: #00FF00; /* Warna Hijau */
+            color: #00FF00;
             border: none;
             box-shadow: none;
             font-size: 13px;
@@ -85,15 +86,15 @@
 <body>
     <div id="map"></div>
     <div id="info-box"></div>
-    <div id="toast">ID SLS Berhasil disalin</div>
+    <div id="toast">Berhasil disalin</div>
 
-    <div id="gear-btn" title="Pengaturan & Cari">⚙️</div>
+    <div id="gear-btn" title="Pengaturan & Cari">⚙</div>
     <div id="locate-btn" title="Lokasi Saya">📍</div>
 
     <div id="settings-panel">
         <h3>🔍 Cari ID SLS</h3>
         <div class="search-container">
-            <input type="text" id="search-idsls" placeholder="Masukkan ID SLS...">
+            <input type="text" id="search-idsubsls" placeholder="Masukkan ID SLS...">
             <button id="search-btn">Cari</button>
         </div>
 
@@ -104,7 +105,7 @@
             <select id="sel-sls"><option value="">-- Pilih SLS --</option></select>
         </div>
 
-        <h3>🔧 Tampilkan Batas</h3>
+        <h3>👁 Tampilkan Batas</h3>
         <div class="checkbox-group">
             <label class="checkbox-item">
                 <input type="checkbox" id="desa-check">
@@ -123,10 +124,15 @@
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
     
     <script>
+        const SB_URL = "https://dephwldquypktcflpuon.supabase.co";
+        const SB_KEY = "sb_publishable_DMDwio5ArtxFkWJU77NnLA_xim7v4ss";
+        const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
+
         const map = L.map('map', { zoomControl: true }).setView([-2.5489, 118.0149], 16);
         let desaLayer = null, slsLayer = null, userMarker = null, selectedLayer = null;
-        let activeLabelGroup = L.layerGroup().addTo(map); // Menyimpan label tunggal
+        let activeLabelGroup = L.layerGroup().addTo(map);
         let allFeatures = [];
+        let supabaseData = []; // Menyimpan data dari tabel sb_sls
 
         const baseLayers = {
             "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map),
@@ -148,6 +154,38 @@
 
         async function loadGeoJSON() {
             try {
+                // 1. Load SEMUA data dari Supabase menggunakan teknik pagination
+                let dbData = [];
+                let error;
+                let from = 0;
+                let to = 999;
+                let hasMore = true;
+
+                while (hasMore) {
+                    const { data, error: fetchError } = await supabaseClient
+                        .from('sb_sls')
+                        .select('*')
+                        .range(from, to);
+
+                    if (fetchError) {
+                        error = fetchError;
+                        break;
+                    }
+
+                    dbData = [...dbData, ...data];
+
+                    if (data.length < 1000) {
+                        hasMore = false;
+                    } else {
+                        from += 1000;
+                        to += 1000;
+                    }
+                }
+
+                if (error) throw error;
+                supabaseData = dbData;
+
+                // 2. Load Desa GeoJSON
                 const desaRes = await fetch('desa.geojson');
                 const desaData = await desaRes.json();
                 desaLayer = L.geoJSON(desaData, {
@@ -155,11 +193,19 @@
                     onEachFeature: (f, l) => { if (f.properties?.nmdesa) l.bindTooltip(f.properties.nmdesa, { sticky: true }); }
                 });
 
+                // 3. Load SLS GeoJSON dan Gabungkan
                 const slsRes = await fetch('sls.geojson');
                 const slsData = await slsRes.json();
-                allFeatures = slsData.features;
                 
-                slsLayer = L.geoJSON(slsData, {
+                allFeatures = slsData.features.map(f => {
+                    const match = supabaseData.find(d => d.idsubsls == f.properties.idsubsls);
+                    return {
+                        ...f,
+                        properties: { ...f.properties, ...(match || {}) }
+                    };
+                });
+                
+                slsLayer = L.geoJSON({ type: "FeatureCollection", features: allFeatures }, {
                     style: slsStyle,
                     onEachFeature: function(feature, layer) {
                         if (feature.properties?.nmsls) layer.bindTooltip(feature.properties.nmsls, { sticky: true });
@@ -173,12 +219,20 @@
 
                 populateDropdowns();
                 locateUser(true);
-            } catch (err) { console.error("Data Error:", err); }
+            } catch (err) { 
+                console.error("Data Error:", err);
+                alert("Gagal memuat semua data dari server.");
+            }
         }
 
         function populateDropdowns() {
             const selKec = document.getElementById('sel-kec');
-            const uniqueKec = [...new Set(allFeatures.map(f => `${f.properties.kdkec}|${f.properties.nmkec}`))].sort();
+            
+            // Urutkan Kecamatan berdasarkan kdkec
+            const uniqueKec = [...new Set(allFeatures.map(f => `${f.properties.kdkec}|${f.properties.nmkec}`))]
+                .filter(i => !i.includes('undefined'))
+                .sort((a, b) => a.split('|')[0].localeCompare(b.split('|')[0]));
+                
             uniqueKec.forEach(item => {
                 const [kd, nm] = item.split('|');
                 selKec.add(new Option(`${kd} - ${nm}`, kd));
@@ -188,8 +242,13 @@
                 const selDesa = document.getElementById('sel-desa');
                 selDesa.innerHTML = '<option value="">-- Pilih Desa --</option>';
                 document.getElementById('sel-sls').innerHTML = '<option value="">-- Pilih SLS --</option>';
+                
+                // Urutkan Desa berdasarkan kddesa
                 const filtered = allFeatures.filter(f => f.properties.kdkec === selKec.value);
-                const uniqueDesa = [...new Set(filtered.map(f => `${f.properties.kddesa}|${f.properties.nmdesa}`))].sort();
+                const uniqueDesa = [...new Set(filtered.map(f => `${f.properties.kddesa}|${f.properties.nmdesa}`))]
+                    .filter(i => !i.includes('undefined'))
+                    .sort((a, b) => a.split('|')[0].localeCompare(b.split('|')[0]));
+                    
                 uniqueDesa.forEach(item => {
                     const [kd, nm] = item.split('|');
                     selDesa.add(new Option(`${kd} - ${nm}`, kd));
@@ -199,15 +258,19 @@
             document.getElementById('sel-desa').onchange = function() {
                 const selSls = document.getElementById('sel-sls');
                 selSls.innerHTML = '<option value="">-- Pilih SLS --</option>';
+                
+                // Urutkan SLS berdasarkan kdsls
                 const filtered = allFeatures.filter(f => f.properties.kdkec === selKec.value && f.properties.kddesa === this.value);
-                filtered.sort((a, b) => (a.properties.nmsls > b.properties.nmsls) ? 1 : -1).forEach(f => {
-                    selSls.add(new Option(`${f.properties.kdsls} - ${f.properties.nmsls}`, f.properties.idsls));
-                });
+                filtered.sort((a, b) => (a.properties.kdsls || "").localeCompare(b.properties.kdsls || ""))
+                    .forEach(f => {
+                        selSls.add(new Option(`${f.properties.kdsls} - ${f.properties.nmsls}`, f.properties.idsubsls));
+                    });
             };
 
+            // Bagian onchange sel-sls tetap sama
             document.getElementById('sel-sls').onchange = function() {
                 if (this.value) {
-                    const layer = slsLayer.getLayers().find(l => l.feature.properties.idsls == this.value);
+                    const layer = slsLayer.getLayers().find(l => l.feature.properties.idsubsls == this.value);
                     if (layer) {
                         map.fitBounds(layer.getBounds());
                         highlightFeature(layer);
@@ -227,13 +290,16 @@
 
         function updateInfoBox(props) {
             const box = document.getElementById('info-box');
-            const idsls = props.idsls || '-';
+            const iidsls = props.idsls || '-';
+            const iidsubsls = props.idsubsls || '-';
+            const inmsls = props.nmsls || '-';
             box.innerHTML = `
-                <b>ID SLS:</b> ${idsls} <span class="copy-btn" onclick="copyToClipboard('${idsls}')" title="Salin ID">📋</span><br>
+                <b>ID SLS:</b> ${iidsls} <span class="copy-btn" onclick="copyToClipboard('${iidsls}')" title="Salin ID">📋</span><br>
+                <b>ID Sub-SLS:</b> ${iidsubsls} <span class="copy-btn" onclick="copyToClipboard('${iidsubsls}')" title="Salin ID">📋</span><br>
                 <b>Kec:</b> ${(props.kdkec || '')} ${props.nmkec || '-'}<br>
                 <b>Desa:</b> ${(props.kddesa || '')} ${props.nmdesa || '-'}<br>
                 <b>Kode SLS:</b> ${props.kdsls || '-'}<br>
-                <b>Nama SLS:</b> ${props.nmsls || '-'}
+                <b>Nama SLS:</b> ${inmsls} <span class="copy-btn" onclick="copyToClipboard('${inmsls}')" title="Salin Nama SLS">📋</span>
             `;
             box.style.display = 'block';
         }
@@ -260,8 +326,6 @@
             selectedLayer = layer;
             selectedLayer.setStyle(slsHighlightStyle);
             selectedLayer.bringToFront();
-            
-            // Tampilkan label hijau hanya untuk poligon ini
             showActiveLabel(layer);
         }
 
@@ -293,7 +357,7 @@
         };
         document.getElementById('locate-btn').onclick = () => locateUser(false);
         document.getElementById('search-btn').onclick = () => {
-            const val = document.getElementById('search-idsls').value.trim();
+            const val = document.getElementById('search-idsubsls').value.trim();
             const l = slsLayer.getLayers().find(lay => lay.feature.properties.idsls == val);
             if (l) { map.fitBounds(l.getBounds()); highlightFeature(l); updateInfoBox(l.feature.properties); }
             else alert("ID tidak ditemukan");
