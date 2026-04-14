@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        /* CSS tetap sama sesuai file asli */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: system-ui, -apple-system, sans-serif; }
         #map { width: 100vw; height: 100vh; }
@@ -112,11 +111,6 @@
                 <span class="color-box" style="background: rgba(0, 0, 255, 0.25); border-color: #0000FF;"></span>
                 Batas Desa (Biru)
             </label>
-            <label class="checkbox-item">
-                <input type="checkbox" id="sls-check" checked>
-                <span class="color-box" style="background: rgba(255, 0, 0, 0.25); border-color: #FF0000;"></span>
-                Batas SLS / RT (Merah)
-            </label>
         </div>
     </div>
 
@@ -125,14 +119,14 @@
     
     <script>
         const SB_URL = "https://dephwldquypktcflpuon.supabase.co";
-        const SB_KEY = "sb_publishable_DMDwio5ArtxFkWJU77NnLA_xim7v4ss";
-        const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
+        let SB_KEY = "";
+        let supabaseClient = null;
 
         const map = L.map('map', { zoomControl: true }).setView([-2.5489, 118.0149], 16);
         let desaLayer = null, slsLayer = null, userMarker = null, selectedLayer = null;
         let activeLabelGroup = L.layerGroup().addTo(map);
         let allFeatures = [];
-        let supabaseData = []; // Menyimpan data dari tabel sb_sls
+        let supabaseData = [];
 
         const baseLayers = {
             "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map),
@@ -147,6 +141,43 @@
         const slsStyle = { color: '#FF0000', weight: 2.5, opacity: 1, fillOpacity: 0 };
         const slsHighlightStyle = { color: '#FFFF00', weight: 5, opacity: 1, fillOpacity: 0.05 };
 
+        async function validateAndStart() {
+            let savedKey = localStorage.getItem("sb_key");
+
+            while (true) {
+                if (!savedKey) {
+                    savedKey = prompt("Masukkan Kode Akses:");
+                    if (savedKey === null) {
+                        document.body.innerHTML = "<h2 style='padding:20px; text-align:center;'>Akses dibatalkan. Segarkan halaman untuk mencoba lagi.</h2>";
+                        return;
+                    }
+                }
+
+                if (savedKey) {
+                    try {
+                        const tempClient = supabase.createClient(SB_URL, savedKey);
+                        const { error } = await tempClient.from('sb_sls').select('idsubsls').limit(1);
+                        
+                        if (!error) {
+                            SB_KEY = savedKey;
+                            supabaseClient = tempClient;
+                            localStorage.setItem("sb_key", SB_KEY);
+                            loadGeoJSON();
+                            break; 
+                        } else {
+                            localStorage.removeItem("sb_key");
+                            savedKey = "";
+                            alert("Kode tidak valid atau akses ditolak.");
+                        }
+                    } catch (e) {
+                        localStorage.removeItem("sb_key");
+                        savedKey = "";
+                        alert("Terjadi kesalahan saat validasi.");
+                    }
+                }
+            }
+        }
+
         function closeGearPanel() {
             const p = document.getElementById('settings-panel');
             if (p.style.display === 'flex') { p.style.display = 'none'; }
@@ -154,9 +185,7 @@
 
         async function loadGeoJSON() {
             try {
-                // 1. Load SEMUA data dari Supabase menggunakan teknik pagination
                 let dbData = [];
-                let error;
                 let from = 0;
                 let to = 999;
                 let hasMore = true;
@@ -167,25 +196,14 @@
                         .select('*')
                         .range(from, to);
 
-                    if (fetchError) {
-                        error = fetchError;
-                        break;
-                    }
+                    if (fetchError) throw fetchError;
 
                     dbData = [...dbData, ...data];
-
-                    if (data.length < 1000) {
-                        hasMore = false;
-                    } else {
-                        from += 1000;
-                        to += 1000;
-                    }
+                    if (data.length < 1000) { hasMore = false; } else { from += 1000; to += 1000; }
                 }
 
-                if (error) throw error;
                 supabaseData = dbData;
 
-                // 2. Load Desa GeoJSON
                 const desaRes = await fetch('desa.geojson');
                 const desaData = await desaRes.json();
                 desaLayer = L.geoJSON(desaData, {
@@ -193,16 +211,12 @@
                     onEachFeature: (f, l) => { if (f.properties?.nmdesa) l.bindTooltip(f.properties.nmdesa, { sticky: true }); }
                 });
 
-                // 3. Load SLS GeoJSON dan Gabungkan
                 const slsRes = await fetch('sls.geojson');
                 const slsData = await slsRes.json();
                 
                 allFeatures = slsData.features.map(f => {
                     const match = supabaseData.find(d => d.idsubsls == f.properties.idsubsls);
-                    return {
-                        ...f,
-                        properties: { ...f.properties, ...(match || {}) }
-                    };
+                    return { ...f, properties: { ...f.properties, ...(match || {}) } };
                 });
                 
                 slsLayer = L.geoJSON({ type: "FeatureCollection", features: allFeatures }, {
@@ -227,8 +241,6 @@
 
         function populateDropdowns() {
             const selKec = document.getElementById('sel-kec');
-            
-            // Urutkan Kecamatan berdasarkan kdkec
             const uniqueKec = [...new Set(allFeatures.map(f => `${f.properties.kdkec}|${f.properties.nmkec}`))]
                 .filter(i => !i.includes('undefined'))
                 .sort((a, b) => a.split('|')[0].localeCompare(b.split('|')[0]));
@@ -242,13 +254,10 @@
                 const selDesa = document.getElementById('sel-desa');
                 selDesa.innerHTML = '<option value="">-- Pilih Desa --</option>';
                 document.getElementById('sel-sls').innerHTML = '<option value="">-- Pilih SLS --</option>';
-                
-                // Urutkan Desa berdasarkan kddesa
                 const filtered = allFeatures.filter(f => f.properties.kdkec === selKec.value);
                 const uniqueDesa = [...new Set(filtered.map(f => `${f.properties.kddesa}|${f.properties.nmdesa}`))]
                     .filter(i => !i.includes('undefined'))
                     .sort((a, b) => a.split('|')[0].localeCompare(b.split('|')[0]));
-                    
                 uniqueDesa.forEach(item => {
                     const [kd, nm] = item.split('|');
                     selDesa.add(new Option(`${kd} - ${nm}`, kd));
@@ -258,8 +267,6 @@
             document.getElementById('sel-desa').onchange = function() {
                 const selSls = document.getElementById('sel-sls');
                 selSls.innerHTML = '<option value="">-- Pilih SLS --</option>';
-                
-                // Urutkan SLS berdasarkan kdsls
                 const filtered = allFeatures.filter(f => f.properties.kdkec === selKec.value && f.properties.kddesa === this.value);
                 filtered.sort((a, b) => (a.properties.kdsls || "").localeCompare(b.properties.kdsls || ""))
                     .forEach(f => {
@@ -267,7 +274,6 @@
                     });
             };
 
-            // Bagian onchange sel-sls tetap sama
             document.getElementById('sel-sls').onchange = function() {
                 if (this.value) {
                     const layer = slsLayer.getLayers().find(l => l.feature.properties.idsubsls == this.value);
@@ -308,7 +314,6 @@
             activeLabelGroup.clearLayers();
             const targetGeo = targetLayer.toGeoJSON();
             const targetCenter = turf.centerOfMass(targetGeo);
-            
             L.marker([targetCenter.geometry.coordinates[1], targetCenter.geometry.coordinates[0]], {
                 icon: L.divIcon({
                     className: 'active-label',
@@ -364,7 +369,6 @@
         };
 
         document.getElementById('desa-check').onchange = function() { this.checked ? desaLayer.addTo(map).bringToFront() : map.removeLayer(desaLayer); };
-        document.getElementById('sls-check').onchange = function() { this.checked ? slsLayer.addTo(map) : map.removeLayer(slsLayer); };
 
         map.on('click', (e) => { 
             if (e.originalEvent.target.id === 'map') { 
@@ -376,7 +380,7 @@
             } 
         });
 
-        window.onload = loadGeoJSON;
+        window.onload = validateAndStart;
     </script>
 </body>
 </html>
