@@ -343,15 +343,15 @@
         function updateInfoBox(props) {
             const box = document.getElementById('info-box');
             const iidsls = props.idsls || '-';
-            const iidsubsls = props.idsubsls || '-';
+            const iidsubsls = props.kdsubsls || '-';
             const inmsls = props.nmsls || '-';
             box.innerHTML = `
+                <b>Nama SLS:</b> ${inmsls} <span class="copy-btn" onclick="copyToClipboard('${inmsls}')" title="Salin Nama SLS">📋</span><br>
                 <b>ID SLS:</b> ${iidsls} <span class="copy-btn" onclick="copyToClipboard('${iidsls}')" title="Salin ID">📋</span><br>
-                <b>ID Sub-SLS:</b> ${iidsubsls} <span class="copy-btn" onclick="copyToClipboard('${iidsubsls}')" title="Salin ID">📋</span><br>
+                <b>Sub-SLS:</b> ${iidsubsls} <span class="copy-btn" onclick="copyToClipboard('${iidsubsls}')" title="Salin ID">📋</span><br>
                 <b>Kec:</b> ${(props.kdkec || '')} ${props.nmkec || '-'}<br>
                 <b>Desa:</b> ${(props.kddesa || '')} ${props.nmdesa || '-'}<br>
-                <b>Kode SLS:</b> ${props.kdsls || '-'}<br>
-                <b>Nama SLS:</b> ${inmsls} <span class="copy-btn" onclick="copyToClipboard('${inmsls}')" title="Salin Nama SLS">📋</span>
+                <b>Kode SLS:</b> ${props.kdsls || '-'}
             `;
             box.style.display = 'block';
         }
