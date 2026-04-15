@@ -343,12 +343,11 @@
         function updateInfoBox(props) {
             const box = document.getElementById('info-box');
             const iidsls = props.idsls || '-';
-            const ikdsubsls = props.kdsubsls || '-';
             const inmsls = props.nmsls || '-';
             box.innerHTML = `
                 <b>Nama SLS:</b> ${inmsls} <span class="copy-btn" onclick="copyToClipboard('${inmsls}')" title="Salin Nama SLS">📋</span><br>
                 <b>ID SLS:</b> ${iidsls} <span class="copy-btn" onclick="copyToClipboard('${iidsls}')" title="Salin ID">📋</span><br>
-                <b>Sub-SLS:</b> ${props.kdsls || '-'}<br>
+                <b>Sub-SLS:</b> ${props.kdsubsls || '-'}<br>
                 <b>Kode SLS:</b> ${props.kdsls || '-'}<br>
                 <b>Kec:</b> ${(props.kdkec || '')} ${props.nmkec || '-'}<br>
                 <b>Desa:</b> ${(props.kddesa || '')} ${props.nmdesa || '-'}
