@@ -12,6 +12,33 @@
         body { font-family: system-ui, -apple-system, sans-serif; }
         #map { width: 100vw; height: 100vh; }
         
+        /* Spinner Overlay */
+        #loader-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            display: none; /* Sembunyi secara default */
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #4285F4;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
         #gear-btn {
             position: absolute; bottom: 25px; right: 25px; z-index: 1000;
             background: white; border: 2px solid #555; border-radius: 50%;
@@ -83,6 +110,11 @@
     </style>
 </head>
 <body>
+    <div id="loader-overlay">
+        <div class="spinner"></div>
+        <p id="loader-text" style="font-weight: bold; color: #333;">Memvalidasi Akses...</p>
+    </div>
+
     <div id="map"></div>
     <div id="info-box"></div>
     <div id="toast">Berhasil disalin</div>
@@ -143,6 +175,8 @@
 
         async function validateAndStart() {
             let savedKey = localStorage.getItem("sb_key");
+            const loader = document.getElementById('loader-overlay');
+            const loaderText = document.getElementById('loader-text');
 
             while (true) {
                 if (!savedKey) {
@@ -154,6 +188,10 @@
                 }
 
                 if (savedKey) {
+                    // Tampilkan loader saat validasi mulai
+                    loader.style.display = 'flex';
+                    loaderText.innerText = "Memvalidasi Akses...";
+
                     try {
                         const tempClient = supabase.createClient(SB_URL, savedKey);
                         const { error } = await tempClient.from('sb_sls').select('idsubsls').limit(1);
@@ -162,14 +200,22 @@
                             SB_KEY = savedKey;
                             supabaseClient = tempClient;
                             localStorage.setItem("sb_key", SB_KEY);
-                            loadGeoJSON();
+                            
+                            // Ubah pesan teks sebelum memuat GeoJSON
+                            loaderText.innerText = "Memuat peta...";
+                            await loadGeoJSON(); 
+                            
+                            // Sembunyikan loader setelah selesai
+                            loader.style.display = 'none';
                             break; 
                         } else {
+                            loader.style.display = 'none'; // Sembunyikan jika error
                             localStorage.removeItem("sb_key");
                             savedKey = "";
                             alert("Kode tidak valid atau akses ditolak.");
                         }
                     } catch (e) {
+                        loader.style.display = 'none';
                         localStorage.removeItem("sb_key");
                         savedKey = "";
                         alert("Terjadi kesalahan saat validasi.");
