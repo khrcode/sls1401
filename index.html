@@ -56,6 +56,15 @@
         
         #settings-panel h3 { margin: 5px 0 8px 0; text-align: center; color: #333; font-size: 14px; border-top: 1px solid #eee; padding-top: 8px; }
         
+        /* Style Search Baru */
+        .search-group { display: flex; gap: 5px; margin-bottom: 5px; }
+        .search-group input { 
+            flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; 
+        }
+        .search-group button { 
+            padding: 8px 12px; background: #4285F4; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;
+        }
+
         .filter-group { display: flex; flex-direction: column; gap: 8px; }
         .filter-group select { 
             padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; width: 100%;
@@ -136,6 +145,12 @@
     <div id="locate-btn" title="Lokasi Saya">📍</div>
 
     <div id="settings-panel">
+        <h3>Cari Sub-SLS</h3>
+        <div class="search-group">
+            <input type="text" id="search-id" placeholder="Masukkan ID Sub-SLS...">
+            <button id="btn-search">Cari</button>
+        </div>
+
         <h3>Filter Wilayah</h3>
         <div class="filter-group">
             <select id="sel-kec"><option value="">-- Pilih Kecamatan --</option></select>
@@ -368,6 +383,7 @@
             currentKecFilter = null;
             currentDesaFilters.clear();
             document.getElementById('sel-kec').value = '';
+            document.getElementById('search-id').value = '';
             document.getElementById('desa-checkbox-container').style.display = 'none';
             document.getElementById('desa-checkboxes').innerHTML = '';
 
@@ -449,6 +465,26 @@
             }, (err) => { if(!isStartup) alert("Gagal akses lokasi."); }, { enableHighAccuracy: true });
         }
 
+        // Fungsi Cari SLS
+        function searchSLS() {
+            const inputVal = document.getElementById('search-id').value.trim();
+            if (!inputVal) return;
+
+            let found = false;
+            slsLayer.eachLayer(layer => {
+                if (layer.feature.properties.idsubsls == inputVal) {
+                    found = true;
+                    resetAllFilters(); // Reset filter agar layer yang dicari tidak tersembunyi
+                    highlightFeature(layer);
+                    updateInfoBox(layer.feature.properties);
+                    map.flyToBounds(layer.getBounds(), { padding: [40, 40], duration: 1.5 });
+                    closeGearPanel();
+                }
+            });
+
+            if (!found) alert("ID Sub-SLS tidak ditemukan.");
+        }
+
         // Event Listeners
         document.getElementById('gear-btn').onclick = () => {
             const p = document.getElementById('settings-panel');
@@ -460,6 +496,9 @@
         document.getElementById('reset-filter').onclick = () => {
             resetAllFilters();
         };
+
+        document.getElementById('btn-search').onclick = searchSLS;
+        document.getElementById('search-id').onkeypress = (e) => { if (e.key === 'Enter') searchSLS(); };
 
         map.on('click', (e) => { 
             if (e.originalEvent.target.id === 'map') { 
