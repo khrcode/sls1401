@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SIG 1401</title>
+    <title>SLS 1401</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -141,6 +141,21 @@
             text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;
         }
         .no-bang-label::before { display: none; }
+
+        #update-info {
+            position: absolute;
+            top: 12px;
+            left: 55px; /* Menyesuaikan jarak dari tombol zoom di kiri atas */
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.493);
+            padding: 6px 12px;
+            border: 1px solid rgba(0,0,0,0.2);
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: regular;
+            color: #333;
+            pointer-events: none; /* Agar tidak menghalangi interaksi peta */
+        }
     </style>
 </head>
 <body>
@@ -212,6 +227,8 @@
         <button id="reset-filter">Reset Filter</button>
     </div>
 
+    <div id="update-info">Pembaruan: Memuat...</div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
     
@@ -245,16 +262,38 @@
         const slsHighlightStyle = { color: '#FFFF00', weight: 5, opacity: 1, fillOpacity: 0.05 };
 
         async function loadExcelData() {
-            try {
-                const response = await fetch('1401.xlsx');
-                if (!response.ok) throw new Error("File 1401.xlsx tidak ditemukan.");
+           try {
+                // Mengubah target file menjadi tk.cdt
+                const response = await fetch('tk.cdt');
+                if (!response.ok) throw new Error("File tk.cdt tidak ditemukan.");
                 const arrayBuffer = await response.arrayBuffer();
                 const workbook = XLSX.read(arrayBuffer, { type: 'array' });
                 const firstSheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[firstSheetName];
+                
+                // Mengekstrak informasi update dari Cell A1
+                const cellA1 = worksheet['A1'];
+                if (cellA1 && cellA1.v) {
+                    // Memastikan format teks minimal 12 karakter (jika angka 0 di depan hilang, tambahkan kembali)
+                    let valStr = String(cellA1.v).padStart(12, '0');
+                    if (valStr.length >= 12) {
+                        const dd = valStr.substring(0, 2);
+                        const mm = valStr.substring(2, 4);
+                        const yyyy = valStr.substring(4, 8);
+                        const hh = valStr.substring(8, 10);
+                        const mnt = valStr.substring(10, 12);
+                        
+                        const updateText = `Update: ${dd}/${mm}/${yyyy} - ${hh}.${mnt}`;
+                        const updateEl = document.getElementById('update-info');
+                        updateEl.innerText = updateText;
+                        updateEl.style.display = 'block'; // Tampilkan kotak
+                    }
+                }
+
+                // Memproses sisa data
                 excelBangunanData = XLSX.utils.sheet_to_json(worksheet);
             } catch (err) {
-                console.warn("Gagal memuat data koordinat:", err);
+                console.warn("Gagal memuat file tk.cdt:", err);
             }
         }
 
@@ -474,9 +513,8 @@
             const iidsubsls = props.idsubsls || '-';
             const inmsls = props.nmsls || '-';
             box.innerHTML = `
-                <b>Nama SLS:</b> ${inmsls} <span class="copy-btn" onclick="copyToClipboard('${inmsls}')" title="Salin Nama SLS">📋</span><br>
-                <b>ID Sub-SLS:</b> ${iidsubsls} <span class="copy-btn" onclick="copyToClipboard('${iidsubsls}')" title="Salin ID">📋</span><br>
-                <b>Kode SLS:</b> ${props.kdsls || '-'}<br>
+                ${iidsubsls} <span class="copy-btn" onclick="copyToClipboard('${iidsubsls}')" title="Salin ID">📋</span><br>
+                ${inmsls} <span class="copy-btn" onclick="copyToClipboard('${inmsls}')" title="Salin Nama SLS">📋</span><br>
                 <b>Kec:</b> ${(props.kdkec || '')} ${props.nmkec || '-'}<br>
                 <b>Desa:</b> ${(props.kddesa || '')} ${props.nmdesa || '-'}
             `;
