@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SLS 1401</title>
+    <title>SIG 1401</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -176,28 +176,30 @@
 
     <!-- Panel Layer (Baru) -->
     <div id="layer-panel">
-        <div class="layer-group-title">Assignment SUBMIT+</div>
+        <div class="layer-group-title">
+            Assignment SUBMIT+ <span id="cnt-total-submit" style="color: #4285F4; font-weight: bold;">(0)</span>
+        </div>
         <label class="layer-item">
             <input type="checkbox" id="chk-khusus-usaha" checked>
-            <span class="color-dot" style="background: #ff8c00;"></span> Khusus Usaha
+            <span class="color-dot" style="background: #ff8c00;"></span> Khusus Usaha <span id="cnt-khusus" style="color: #666; font-weight: bold;">(0)</span>
         </label>
         <label class="layer-item">
             <input type="checkbox" id="chk-keluarga-ada-usaha" checked>
-            <span class="color-dot" style="background: #c71585;"></span> Keluarga Ada Usaha
+            <span class="color-dot" style="background: #c71585;"></span> Keluarga Ada Usaha <span id="cnt-ada-usaha" style="color: #666; font-weight: bold;">(0)</span>
         </label>
         <label class="layer-item">
             <input type="checkbox" id="chk-keluarga-saja" checked>
-            <span class="color-dot" style="background: #1f77b4;"></span> Keluarga Saja
+            <span class="color-dot" style="background: #1f77b4;"></span> Keluarga Saja <span id="cnt-keluarga" style="color: #666; font-weight: bold;">(0)</span>
         </label>
         <label class="layer-item">
             <input type="checkbox" id="chk-bangunan-lainnya" checked>
-            <span class="color-dot" style="background: #2ca02c;"></span> Bangunan Lainnya
+            <span class="color-dot" style="background: #2ca02c;"></span> Bangunan Lainnya <span id="cnt-lainnya" style="color: #666; font-weight: bold;">(0)</span>
         </label>
         
         <div class="layer-group-title" style="margin-top: 8px;">Assignment DRAFT</div>
         <label class="layer-item">
             <input type="checkbox" id="chk-draft" checked>
-            <span class="color-dot" style="background: #d62728;"></span> Assignment DRAFT
+            <span class="color-dot" style="background: #d62728;"></span> Assignment DRAFT <span id="cnt-draft" style="color: #666; font-weight: bold;">(0)</span>
         </label>
     </div>
 
@@ -538,7 +540,14 @@
 
         function renderBangunanForSelectedSLS(idsubsls) {
             bangunanLayerGroup.clearLayers();
-            if (!showBangunan || !idsubsls) return;
+            
+            // 1. Variabel penampung jumlah titik per kategori
+            let cKhusus = 0, cAdaUsaha = 0, cKeluarga = 0, cLainnya = 0, cDraft = 0;
+
+            if (!showBangunan || !idsubsls) {
+                updateCounterUI(0, 0, 0, 0, 0); // Reset ke 0 jika peta kosong
+                return;
+            }
 
             const chkKhusus = document.getElementById('chk-khusus-usaha').checked;
             const chkAdaUsaha = document.getElementById('chk-keluarga-ada-usaha').checked;
@@ -548,10 +557,10 @@
 
             const matchingPoints = excelBangunanData.filter(item => {
                 return item.idsubsls == idsubsls &&
-                       item.geotag_latitude != null &&
-                       item.geotag_longitude != null &&
-                       !isNaN(parseFloat(item.geotag_latitude)) &&
-                       !isNaN(parseFloat(item.geotag_longitude));
+                    item.geotag_latitude != null &&
+                    item.geotag_longitude != null &&
+                    !isNaN(parseFloat(item.geotag_latitude)) &&
+                    !isNaN(parseFloat(item.geotag_longitude));
             });
 
             matchingPoints.forEach(pt => {
@@ -567,21 +576,27 @@
                 let isVisible = false;
                 let finalColor = '#6c757d'; 
 
-                // Logika Filter
+                // 2. Hitung total titik SEBELUM mengecek status centang checkbox
                 if (status.includes('DRAFT')) {
+                    cDraft++;
                     if (chkDraft) { isVisible = true; finalColor = '#d62728'; }
                 } else {
                     if (label === 1) {
+                        cKhusus++;
                         if (chkKhusus) { isVisible = true; finalColor = '#ff8c00'; }
                     } else if ((label === 2 || label === 3) && jmlUsaha > 0) { 
+                        cAdaUsaha++;
                         if (chkAdaUsaha) { isVisible = true; finalColor = '#c71585'; }
                     } else if (label === 3 && jmlUsaha === 0) {
+                        cKeluarga++;
                         if (chkKeluarga) { isVisible = true; finalColor = '#1f77b4'; }
                     } else if (label === 4) {
+                        cLainnya++;
                         if (chkLainnya) { isVisible = true; finalColor = '#2ca02c'; }
                     }
                 }
 
+                // Hentikan rendering visual jika layer di-uncheck, tapi perhitungan tetap masuk
                 if (!isVisible) return; 
 
                 const circle = L.circleMarker([lat, lng], {
@@ -605,6 +620,23 @@
                 }
                 circle.addTo(bangunanLayerGroup);
             });
+
+            // 3. Eksekusi pembaruan teks ke layar
+            updateCounterUI(cKhusus, cAdaUsaha, cKeluarga, cLainnya, cDraft);
+        }
+
+        // Fungsi pembantu agar kode lebih bersih
+        function updateCounterUI(khusus, adaUsaha, keluarga, lainnya, draft) {
+            // Menjumlahkan total keseluruhan kategori SUBMIT+
+            const totalSubmit = khusus + adaUsaha + keluarga + lainnya;
+            document.getElementById('cnt-total-submit').innerText = `(${totalSubmit})`;
+            
+            // Pembaruan masing-masing sub-kategori
+            document.getElementById('cnt-khusus').innerText = `(${khusus})`;
+            document.getElementById('cnt-ada-usaha').innerText = `(${adaUsaha})`;
+            document.getElementById('cnt-keluarga').innerText = `(${keluarga})`;
+            document.getElementById('cnt-lainnya').innerText = `(${lainnya})`;
+            document.getElementById('cnt-draft').innerText = `(${draft})`;
         }
 
         function highlightFeature(layer) {
