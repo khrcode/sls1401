@@ -566,7 +566,7 @@
             matchingPoints.forEach(pt => {
                 const lat = parseFloat(pt.geotag_latitude);
                 const lng = parseFloat(pt.geotag_longitude);
-                const nama = pt.nama_bangunan || 'Tanpa Nama Bangunan';
+                const nama = pt.nama_principal || 'Tanpa Nama Bangunan';
                 const noBang = pt.no_bang !== undefined && pt.no_bang !== null ? pt.no_bang : '';
 
                 const status = (pt.status_assignment || '').toString().toUpperCase();
