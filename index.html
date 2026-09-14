@@ -39,7 +39,6 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Sidebar Kiri Kustom */
         #sidebar {
             position: absolute;
             top: 0; left: 0;
@@ -178,7 +177,6 @@
         }
         .no-bang-label::before { display: none; }
 
-         /* Animasi Pulse Marker */
         .pulse-marker-container {
             width: 36px;
             height: 36px;
@@ -201,16 +199,18 @@
             box-shadow: 0 0 6px rgba(0,0,0,0.5);
         }
         @keyframes pulse-wave {
-            0% {
-                transform: scale(0.5);
-                opacity: 1;
-            }
-            100% {
-                transform: scale(2.2);
-                opacity: 0;
-            }
+            0% { transform: scale(0.5); opacity: 1; }
+            100% { transform: scale(2.2); opacity: 0; }
         }
-
+        
+        #filter-bangunan {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 13px;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
@@ -247,11 +247,8 @@
                 <span class="color-dot" style="background: #2ca02c;"></span> Bangunan Lainnya <span id="cnt-lainnya" style="color: #666; font-weight: bold;">(0)</span>
             </label>
             
-            <div class="layer-group-title" style="margin-top: 8px;">Assignment DRAFT</div>
-            <label class="layer-item">
-                <input type="checkbox" id="chk-draft" checked>
-                <span class="color-dot" style="background: #d62728;"></span> Assignment DRAFT <span id="cnt-draft" style="color: #666; font-weight: bold;">(0)</span>
-            </label>
+            <div class="layer-group-title" style="margin-top: 10px;">Filter</div>
+            <input type="text" id="filter-bangunan" placeholder="Ketik no.bangunan atau nama assignment">
         </div>
 
         <div id="sidebar-building-list"></div>
@@ -595,7 +592,6 @@
         function panToBuilding(lat, lng) {
             map.flyTo([lat, lng], 20, { duration: 1 });
             
-            // Render elemen pulse marker
             const pulseIcon = L.divIcon({
                 className: '',
                 html: `
@@ -610,7 +606,6 @@
 
             const pulseLayer = L.marker([lat, lng], { icon: pulseIcon, interactive: false }).addTo(map);
             
-            // Hapus animasi setelah 3 detik
             setTimeout(() => {
                 if(map.hasLayer(pulseLayer)) {
                     map.removeLayer(pulseLayer);
@@ -622,10 +617,10 @@
             bangunanLayerGroup.clearLayers();
             document.getElementById('sidebar-building-list').innerHTML = '';
             
-            let cKhusus = 0, cAdaUsaha = 0, cKeluarga = 0, cLainnya = 0, cDraft = 0;
+            let cKhusus = 0, cAdaUsaha = 0, cKeluarga = 0, cLainnya = 0;
 
             if (!showBangunan || !idsubsls) {
-                updateCounterUI(0, 0, 0, 0, 0); 
+                updateCounterUI(0, 0, 0, 0); 
                 return;
             }
 
@@ -633,7 +628,7 @@
             const chkAdaUsaha = document.getElementById('chk-keluarga-ada-usaha').checked;
             const chkKeluarga = document.getElementById('chk-keluarga-saja').checked;
             const chkLainnya = document.getElementById('chk-bangunan-lainnya').checked;
-            const chkDraft = document.getElementById('chk-draft').checked;
+            const searchText = document.getElementById('filter-bangunan').value.toLowerCase();
 
             const matchingPoints = excelBangunanData.filter(item => {
                 return item.idsubsls == idsubsls &&
@@ -646,38 +641,41 @@
             let listHTML = '';
 
             matchingPoints.forEach(pt => {
+                const status = (pt.status_assignment || '').toString().toUpperCase();
+                if (status.includes('DRAFT')) return; // Hilangkan bangunan status DRAFT
+
                 const lat = parseFloat(pt.geotag_latitude);
                 const lng = parseFloat(pt.geotag_longitude);
                 const nama = pt.nama_principal || 'Tanpa Nama Bangunan';
                 const noBang = pt.no_bang !== undefined && pt.no_bang !== null ? pt.no_bang : '';
 
-                const status = (pt.status_assignment || '').toString().toUpperCase();
                 const label = parseInt(pt.label_bangunan);
                 const jmlUsaha = parseFloat(pt.jumlah_usaha_ditemukan) || 0;
                 
                 let isVisible = false;
                 let finalColor = '#6c757d'; 
 
-                if (status.includes('DRAFT')) {
-                    cDraft++;
-                    if (chkDraft) { isVisible = true; finalColor = '#d62728'; }
-                } else {
-                    if (label === 1) {
-                        cKhusus++;
-                        if (chkKhusus) { isVisible = true; finalColor = '#ff8c00'; }
-                    } else if ((label === 2 || label === 3) && jmlUsaha > 0) { 
-                        cAdaUsaha++;
-                        if (chkAdaUsaha) { isVisible = true; finalColor = '#c71585'; }
-                    } else if (label === 3 && jmlUsaha === 0) {
-                        cKeluarga++;
-                        if (chkKeluarga) { isVisible = true; finalColor = '#1f77b4'; }
-                    } else if (label === 4) {
-                        cLainnya++;
-                        if (chkLainnya) { isVisible = true; finalColor = '#2ca02c'; }
-                    }
+                if (label === 1) {
+                    cKhusus++;
+                    if (chkKhusus) { isVisible = true; finalColor = '#ff8c00'; }
+                } else if ((label === 2 || label === 3) && jmlUsaha > 0) { 
+                    cAdaUsaha++;
+                    if (chkAdaUsaha) { isVisible = true; finalColor = '#c71585'; }
+                } else if (label === 3 && jmlUsaha === 0) {
+                    cKeluarga++;
+                    if (chkKeluarga) { isVisible = true; finalColor = '#1f77b4'; }
+                } else if (label === 4) {
+                    cLainnya++;
+                    if (chkLainnya) { isVisible = true; finalColor = '#2ca02c'; }
                 }
 
                 if (!isVisible) return; 
+
+                // Terapkan filter pencarian nomor/nama bangunan
+                if (searchText) {
+                    const searchTarget = `${noBang} ${nama}`.toLowerCase();
+                    if (!searchTarget.includes(searchText)) return;
+                }
 
                 listHTML += `
                     <div class="list-item" onclick="panToBuilding(${lat}, ${lng})">
@@ -702,10 +700,10 @@
             });
 
             document.getElementById('sidebar-building-list').innerHTML = listHTML;
-            updateCounterUI(cKhusus, cAdaUsaha, cKeluarga, cLainnya, cDraft);
+            updateCounterUI(cKhusus, cAdaUsaha, cKeluarga, cLainnya);
         }
 
-        function updateCounterUI(khusus, adaUsaha, keluarga, lainnya, draft) {
+        function updateCounterUI(khusus, adaUsaha, keluarga, lainnya) {
             const totalSubmit = khusus + adaUsaha + keluarga + lainnya;
             document.getElementById('cnt-total-submit').innerText = `(${totalSubmit})`;
             
@@ -713,7 +711,6 @@
             document.getElementById('cnt-ada-usaha').innerText = `(${adaUsaha})`;
             document.getElementById('cnt-keluarga').innerText = `(${keluarga})`;
             document.getElementById('cnt-lainnya').innerText = `(${lainnya})`;
-            document.getElementById('cnt-draft').innerText = `(${draft})`;
         }
 
         function highlightFeature(layer) {
@@ -773,7 +770,12 @@
             p.style.display = p.style.display === 'flex' ? 'none' : 'flex';
         };
 
-        const layerCheckboxes = ['chk-khusus-usaha', 'chk-keluarga-ada-usaha', 'chk-keluarga-saja', 'chk-bangunan-lainnya', 'chk-draft'];
+        // Event listener saat pengguna mengetik filter
+        document.getElementById('filter-bangunan').addEventListener('input', () => {
+            if (selectedLayer) renderBangunanForSelectedSLS(selectedLayer.feature.properties.idsubsls);
+        });
+
+        const layerCheckboxes = ['chk-khusus-usaha', 'chk-keluarga-ada-usaha', 'chk-keluarga-saja', 'chk-bangunan-lainnya'];
         layerCheckboxes.forEach(id => {
             document.getElementById(id).onchange = () => {
                 if (selectedLayer) renderBangunanForSelectedSLS(selectedLayer.feature.properties.idsubsls);
