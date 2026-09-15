@@ -159,8 +159,9 @@
 
         #toast {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.7); color: white; padding: 12px 20px;
+            background: rgba(0, 0, 0, 0.8); color: white; padding: 12px 20px;
             border-radius: 10px; z-index: 3000; display: none; font-size: 14px;
+            text-align: center; white-space: pre-line;
         }
 
         .active-label {
@@ -304,6 +305,18 @@
         let supabaseData = [];
         let currentKecFilter = null;
         let currentDesaFilters = new Set();
+
+        // Disable menu klik kanan di atas peta
+        document.getElementById('map').addEventListener('contextmenu', (e) => e.preventDefault());
+
+        // Menyalin titik koordinat saat tekan lama (tap hold / klik kanan)
+        map.on('contextmenu', (e) => {
+            if (e.originalEvent) e.originalEvent.preventDefault();
+            const lat = e.latlng.lat.toFixed(6);
+            const lng = e.latlng.lng.toFixed(6);
+            const coordsStr = `${lat}, ${lng}`;
+            copyToClipboard(coordsStr, `Titik koordinat disalin:\n${coordsStr}`);
+        });
 
         const baseLayers = {
             "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 22, maxNativeZoom: 19 }).addTo(map),
@@ -643,7 +656,7 @@
 
             matchingPoints.forEach(pt => {
                 const status = (pt.status_assignment || '').toString().toUpperCase();
-                if (status.includes('DRAFT')) return; // Hilangkan bangunan status DRAFT
+                if (status.includes('DRAFT')) return;
 
                 const lat = parseFloat(pt.geotag_latitude);
                 const lng = parseFloat(pt.geotag_longitude);
@@ -672,7 +685,6 @@
 
                 if (!isVisible) return; 
 
-                // Terapkan filter pencarian nomor/nama bangunan
                 if (searchText) {
                     const searchTarget = `${noBang} ${nama}`.toLowerCase();
                     if (!searchTarget.includes(searchText)) return;
@@ -771,7 +783,6 @@
             p.style.display = p.style.display === 'flex' ? 'none' : 'flex';
         };
 
-        // Event listener saat pengguna mengetik filter
         document.getElementById('filter-bangunan').addEventListener('input', () => {
             if (selectedLayer) renderBangunanForSelectedSLS(selectedLayer.feature.properties.idsubsls);
         });
@@ -792,12 +803,6 @@
         document.getElementById('reset-filter').onclick = () => resetAllFilters();
         document.getElementById('btn-search').onclick = searchSLS;
         document.getElementById('search-id').onkeypress = (e) => { if (e.key === 'Enter') searchSLS(); };
-
-        // Fitur tekan lama (press/hold/right click) pada peta untuk menyalin titik koordinat
-        map.on('contextmenu', (e) => {
-            const coords = `${e.latlng.lat}, ${e.latlng.lng}`;
-            copyToClipboard(coords, 'Titik koordinat disalin');
-        });
 
         map.on('click', (e) => { 
             if (e.originalEvent.target.id === 'map') { 
