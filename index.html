@@ -161,7 +161,6 @@
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: rgba(0, 0, 0, 0.7); color: white; padding: 12px 20px;
             border-radius: 10px; z-index: 3000; display: none; font-size: 14px;
-            text-align: center;
         }
 
         .active-label {
@@ -556,9 +555,10 @@
             }
         }
 
-        function copyToClipboard(text) {
+        function copyToClipboard(text, message = 'Berhasil disalin') {
             navigator.clipboard.writeText(text).then(() => {
                 const toast = document.getElementById('toast');
+                toast.innerText = message;
                 toast.style.display = 'block';
                 setTimeout(() => { toast.style.display = 'none'; }, 1000);
             });
@@ -793,26 +793,17 @@
         document.getElementById('btn-search').onclick = searchSLS;
         document.getElementById('search-id').onkeypress = (e) => { if (e.key === 'Enter') searchSLS(); };
 
+        // Fitur tekan lama (press/hold/right click) pada peta untuk menyalin titik koordinat
+        map.on('contextmenu', (e) => {
+            const coords = `${e.latlng.lat}, ${e.latlng.lng}`;
+            copyToClipboard(coords, 'Titik koordinat disalin');
+        });
+
         map.on('click', (e) => { 
             if (e.originalEvent.target.id === 'map') { 
                 closeGearPanel();
                 closeSidebar();
             } 
-        });
-
-        // EVENT LONG PRESS (CONTEXTMENU)
-        map.on('contextmenu', (e) => {
-            const coords = `${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`;
-            navigator.clipboard.writeText(coords).then(() => {
-                const toast = document.getElementById('toast');
-                const originalText = toast.innerText;
-                toast.innerText = `Titik koordinat disalin\n${coords}`;
-                toast.style.display = 'block';
-                setTimeout(() => { 
-                    toast.style.display = 'none'; 
-                    toast.innerText = originalText;
-                }, 2000);
-            });
         });
 
         window.onload = validateAndStart;
