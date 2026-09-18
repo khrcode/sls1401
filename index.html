@@ -39,12 +39,46 @@
             100% { transform: rotate(360deg); }
         }
 
+        /* --- BAR PENCARIAN DI TENGAH ATAS --- */
+        #top-search-bar {
+            position: absolute; 
+            top: 15px; 
+            left: 50%; 
+            transform: translateX(-50%);
+            z-index: 2000; 
+            background: white; 
+            padding: 10px; 
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2); 
+            display: flex; 
+            gap: 8px; 
+            width: 350px;
+            max-width: 90vw;
+        }
+        #top-search-bar input { 
+            flex: 1; 
+            padding: 10px; 
+            border: 1px solid #ccc; 
+            border-radius: 4px; 
+            font-size: 14px; 
+        }
+        #top-search-bar button { 
+            padding: 10px 15px; 
+            background: #4285F4; 
+            color: white; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: 14px; 
+            font-weight: bold; 
+        }
+
         #sidebar {
             position: absolute;
             top: 0; left: 0;
             width: 350px; height: 100vh;
             background: #ffffff;
-            z-index: 2000;
+            z-index: 2500;
             display: none;
             flex-direction: column;
             box-shadow: 2px 0 15px rgba(0,0,0,0.2);
@@ -68,17 +102,8 @@
             cursor: pointer;
         }
 
-        #sidebar-update-info {
-            font-size: 11px;
-            color: #666;
-            margin-bottom: 8px;
-        }
-
-        #sidebar-sls-info {
-            font-size: 14px;
-            color: #333;
-            line-height: 1.4;
-        }
+        #sidebar-update-info { font-size: 11px; color: #666; margin-bottom: 8px; }
+        #sidebar-sls-info { font-size: 14px; color: #333; line-height: 1.4; }
 
         #sidebar-layer-panel {
             padding: 15px;
@@ -93,21 +118,8 @@
         .layer-item { display: flex; align-items: center; gap: 8px; cursor: pointer; }
         .color-dot { width: 16px; height: 16px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
 
-        #sidebar-building-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 0;
-        }
-
-        .list-item {
-            display: flex;
-            align-items: center;
-            padding: 12px 15px;
-            border-bottom: 1px solid #eee;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
+        #sidebar-building-list { flex: 1; overflow-y: auto; padding: 0; }
+        .list-item { display: flex; align-items: center; padding: 12px 15px; border-bottom: 1px solid #eee; cursor: pointer; transition: background 0.2s; }
         .list-item:hover { background: #f1f1f1; }
         .list-item .item-text { font-size: 13px; color: #333; font-weight: 500; text-transform: uppercase; }
         .list-item .arrow-icon { margin-left: auto; color: #888; font-weight: bold; font-size: 16px; }
@@ -136,10 +148,6 @@
         }
         
         #settings-panel h3 { margin: 5px 0 8px 0; text-align: center; color: #333; font-size: 14px; border-top: 1px solid #eee; padding-top: 8px; }
-        
-        .search-group { display: flex; gap: 5px; margin-bottom: 5px; }
-        .search-group input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
-        .search-group button { padding: 8px 12px; background: #4285F4; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
 
         .filter-group { display: flex; flex-direction: column; gap: 8px; }
         .filter-group select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; width: 100%; }
@@ -178,39 +186,22 @@
         }
         .no-bang-label::before { display: none; }
 
-        .pulse-marker-container {
-            width: 36px;
-            height: 36px;
-            position: relative;
-        }
+        .pulse-marker-container { width: 36px; height: 36px; position: relative; }
         .pulse-ring {
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            border: 3px solid #ff4444;
-            border-radius: 50%;
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            border: 3px solid #ff4444; border-radius: 50%;
             animation: pulse-wave 1.2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
         }
         .pulse-dot {
-            position: absolute;
-            top: 10px; left: 10px;
-            width: 16px; height: 16px;
-            background-color: #ff0000;
-            border: 2px solid #ffffff;
-            border-radius: 50%;
+            position: absolute; top: 10px; left: 10px; width: 16px; height: 16px;
+            background-color: #ff0000; border: 2px solid #ffffff; border-radius: 50%;
             box-shadow: 0 0 6px rgba(0,0,0,0.5);
         }
-        @keyframes pulse-wave {
-            0% { transform: scale(0.5); opacity: 1; }
-            100% { transform: scale(2.2); opacity: 0; }
-        }
+        @keyframes pulse-wave { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(2.2); opacity: 0; } }
         
         #filter-bangunan {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 13px;
-            margin-top: 5px;
+            width: 100%; padding: 8px; border: 1px solid #ccc;
+            border-radius: 4px; font-size: 13px; margin-top: 5px;
         }
     </style>
 </head>
@@ -218,6 +209,12 @@
     <div id="loader-overlay">
         <div class="spinner"></div>
         <p id="loader-text" style="font-weight: bold; color: #333;">Memvalidasi Akses...</p>
+    </div>
+
+    <!-- PENCARIAN DI TENGAH ATAS -->
+    <div id="top-search-bar">
+        <input type="text" id="search-id" placeholder="Masukkan ID Sub-SLS...">
+        <button id="btn-search">Cari</button>
     </div>
 
     <div id="sidebar">
@@ -267,12 +264,6 @@
             <label for="toggle-bangunan">Tampilkan Titik Bangunan</label>
         </div>
 
-        <h3>Cari Sub-SLS</h3>
-        <div class="search-group">
-            <input type="text" id="search-id" placeholder="Masukkan ID Sub-SLS...">
-            <button id="btn-search">Cari</button>
-        </div>
-
         <h3>Filter Wilayah</h3>
         <div class="filter-group">
             <select id="sel-kec"><option value="">-- Pilih Kecamatan --</option></select>
@@ -306,10 +297,8 @@
         let currentKecFilter = null;
         let currentDesaFilters = new Set();
 
-        // Disable menu klik kanan di atas peta
         document.getElementById('map').addEventListener('contextmenu', (e) => e.preventDefault());
 
-        // Menyalin titik koordinat saat tekan lama (tap hold / klik kanan)
         map.on('contextmenu', (e) => {
             if (e.originalEvent) e.originalEvent.preventDefault();
             const lat = e.latlng.lat.toFixed(6);
@@ -319,9 +308,9 @@
         });
 
         const baseLayers = {
-            "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 22, maxNativeZoom: 19 }).addTo(map),
+            "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 22, maxNativeZoom: 19 }),
             "Google Satellite": L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { maxZoom: 22, maxNativeZoom: 20 }),
-            "Google Hybrid": L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { maxZoom: 22, maxNativeZoom: 20 }),
+            "Google Hybrid": L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { maxZoom: 22, maxNativeZoom: 20 }).addTo(map),
             "Google Street": L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 22, maxNativeZoom: 20 }),
             "ESRI Satellite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 22, maxNativeZoom: 19 })
         };
@@ -583,7 +572,6 @@
             const inmdesa = props.nmdesa || '';
             const inmsls = props.nmsls || '-';
             
-            // Menampilkan nama desa tepat sebelum nama SLS
             slsBox.innerHTML = `
                 [${iidsubsls}] <span class="copy-btn" onclick="copyToClipboard('${iidsubsls}')" title="Salin ID">📋</span><br>
                 ${inmdesa ? `<div style="font-weight: regular; color: #000000; margin-top: 3px;">DESA ${inmdesa}</div>` : ''}
@@ -753,13 +741,16 @@
                 }).addTo(map);
                 map.setView([latitude, longitude], 16);
                 
-                const point = turf.point([longitude, latitude]);
-                slsLayer.eachLayer(layer => {
-                    if (turf.booleanPointInPolygon(point, layer.toGeoJSON())) {
-                        highlightFeature(layer);
-                        updateSidebarInfo(layer.feature.properties);
-                    }
-                });
+                // Mencegah iterasi pencarian lokasi Turf.js dan memuat bangunan jika ini hanya event startup 
+                if (!isStartup) {
+                    const point = turf.point([longitude, latitude]);
+                    slsLayer.eachLayer(layer => {
+                        if (turf.booleanPointInPolygon(point, layer.toGeoJSON())) {
+                            highlightFeature(layer);
+                            updateSidebarInfo(layer.feature.properties);
+                        }
+                    });
+                }
             }, (err) => { if(!isStartup) alert("Gagal akses lokasi."); }, { enableHighAccuracy: true });
         }
 
