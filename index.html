@@ -580,10 +580,14 @@
         function updateSidebarInfo(props) {
             const slsBox = document.getElementById('sidebar-sls-info');
             const iidsubsls = props.idsubsls || '-';
+            const inmdesa = props.nmdesa || '';
             const inmsls = props.nmsls || '-';
+            
+            // Menampilkan nama desa tepat sebelum nama SLS
             slsBox.innerHTML = `
                 [${iidsubsls}] <span class="copy-btn" onclick="copyToClipboard('${iidsubsls}')" title="Salin ID">📋</span><br>
-                ${inmsls}
+                ${inmdesa ? `<div style="font-weight: regular; color: #000000; margin-top: 3px;">DESA ${inmdesa}</div>` : ''}
+                <div>${inmsls}</div>
             `;
             document.getElementById('sidebar').style.display = 'flex';
         }
